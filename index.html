@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stopwatch</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111;
+      --border: #222;
+      --accent: #e8ff47;
+      --accent2: #ff4757;
+      --text: #f0f0f0;
+      --muted: #444;
+      --dim: #2a2a2a;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* Subtle grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--dim) 1px, transparent 1px),
+        linear-gradient(90deg, var(--dim) 1px, transparent 1px);
+      background-size: 40px 40px;
+      opacity: 0.3;
+      pointer-events: none;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .label {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 0.85rem;
+      letter-spacing: 6px;
+      color: var(--muted);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+
+    /* Ring */
+    .ring-wrap {
+      position: relative;
+      width: 300px;
+      height: 300px;
+      margin-bottom: 40px;
+    }
+
+    .ring-svg {
+      position: absolute;
+      inset: 0;
+      transform: rotate(-90deg);
+    }
+
+    .ring-bg {
+      fill: none;
+      stroke: var(--dim);
+      stroke-width: 3;
+    }
+
+    .ring-progress {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-dasharray: 816;
+      stroke-dashoffset: 816;
+      transition: stroke-dashoffset 0.1s linear;
+      filter: drop-shadow(0 0 6px var(--accent));
+    }
+
+    .ring-inner {
+      position: absolute;
+      inset: 20px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .time-display {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 4.2rem;
+      letter-spacing: 4px;
+      color: var(--text);
+      line-height: 1;
+      transition: color 0.2s;
+    }
+
+    .time-display.running {
+      color: var(--accent);
+      text-shadow: 0 0 30px rgba(232, 255, 71, 0.3);
+    }
+
+    .ms-display {
+      font-family: 'DM Mono', monospace;
+      font-size: 1.4rem;
+      font-weight: 300;
+      color: var(--muted);
+      letter-spacing: 3px;
+    }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+
+    .btn {
+      border: none;
+      cursor: pointer;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      transition: all 0.15s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: white;
+      opacity: 0;
+      transition: opacity 0.1s;
+    }
+
+    .btn:active::after { opacity: 0.08; }
+
+    .btn-main {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #000;
+      font-weight: 500;
+      font-size: 0.8rem;
+      box-shadow: 0 0 30px rgba(232,255,71,0.2);
+    }
+
+    .btn-main:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 40px rgba(232,255,71,0.35);
+    }
+
+    .btn-main.stop {
+      background: var(--accent2);
+      box-shadow: 0 0 30px rgba(255,71,87,0.25);
+    }
+
+    .btn-main.stop:hover {
+      box-shadow: 0 0 40px rgba(255,71,87,0.4);
+    }
+
+    .btn-secondary {
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      align-self: center;
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--text);
+      color: var(--text);
+    }
+
+    /* Laps */
+    .laps-wrap {
+      width: 300px;
+    }
+
+    .laps-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.7rem;
+      letter-spacing: 2px;
+      color: var(--muted);
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .laps-list {
+      max-height: 180px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .laps-list::-webkit-scrollbar { width: 3px; }
+    .laps-list::-webkit-scrollbar-track { background: transparent; }
+    .laps-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .lap-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      font-size: 0.82rem;
+      border-bottom: 1px solid var(--dim);
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .lap-item:first-child {
+      color: var(--accent);
+    }
+
+    .lap-num { color: var(--muted); }
+    .lap-split { color: var(--muted); font-size: 0.75rem; }
+
+    .no-laps {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.78rem;
+      padding: 20px 0;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="label">Stopwatch</div>
+
+    <div class="ring-wrap">
+      <svg class="ring-svg" viewBox="0 0 300 300">
+        <circle class="ring-bg" cx="150" cy="150" r="130"/>
+        <circle class="ring-progress" id="ring" cx="150" cy="150" r="130"/>
+      </svg>
+      <div class="ring-inner">
+        <div class="time-display" id="timeDisplay">00:00</div>
+        <div class="ms-display" id="msDisplay">.000</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-secondary" id="lapBtn" onclick="lap()" title="Lap / Reset">LAP</button>
+      <button class="btn btn-main" id="mainBtn" onclick="toggle()">START</button>
+      <button class="btn btn-secondary" onclick="reset()" title="Reset">RST</button>
+    </div>
+
+    <div class="laps-wrap">
+      <div class="laps-header">
+        <span>Lap</span>
+        <span>Split</span>
+        <span>Total</span>
+      </div>
+      <div class="laps-list" id="lapsList">
+        <div class="no-laps">No laps recorded</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let running = false;
+    let startTime = 0;
+    let elapsed = 0;
+    let raf = null;
+    let laps = [];
+    let lastLapTime = 0;
+
+    const timeDisplay = document.getElementById('timeDisplay');
+    const msDisplay = document.getElementById('msDisplay');
+    const mainBtn = document.getElementById('mainBtn');
+    const lapsList = document.getElementById('lapsList');
+    const ring = document.getElementById('ring');
+    const CIRCUMFERENCE = 816; // 2 * PI * 130
+
+    function format(ms) {
+      const totalSec = Math.floor(ms / 1000);
+      const min = Math.floor(totalSec / 60).toString().padStart(2, '0');
+      const sec = (totalSec % 60).toString().padStart(2, '0');
+      const mil = (ms % 1000).toString().padStart(3, '0');
+      return { min, sec, mil };
+    }
+
+    function tick() {
+      elapsed = Date.now() - startTime;
+      const { min, sec, mil } = format(elapsed);
+      timeDisplay.textContent = `${min}:${sec}`;
+      msDisplay.textContent = `.${mil}`;
+
+      // Ring rotates every 60 seconds
+      const progress = (elapsed % 60000) / 60000;
+      ring.style.strokeDashoffset = CIRCUMFERENCE - (CIRCUMFERENCE * progress);
+
+      raf = requestAnimationFrame(tick);
+    }
+
+    function toggle() {
+      if (!running) {
+        startTime = Date.now() - elapsed;
+        running = true;
+        mainBtn.textContent = 'STOP';
+        mainBtn.classList.add('stop');
+        timeDisplay.classList.add('running');
+        tick();
+      } else {
+        cancelAnimationFrame(raf);
+        running = false;
+        mainBtn.textContent = 'START';
+        mainBtn.classList.remove('stop');
+        timeDisplay.classList.remove('running');
+      }
+    }
+
+    function lap() {
+      if (!running && elapsed === 0) return;
+      const split = elapsed - lastLapTime;
+      lastLapTime = elapsed;
+      laps.unshift({ n: laps.length + 1, split, total: elapsed });
+      renderLaps();
+    }
+
+    function reset() {
+      cancelAnimationFrame(raf);
+      running = false;
+      elapsed = 0;
+      lastLapTime = 0;
+      laps = [];
+      mainBtn.textContent = 'START';
+      mainBtn.classList.remove('stop');
+      timeDisplay.classList.remove('running');
+      timeDisplay.textContent = '00:00';
+      msDisplay.textContent = '.000';
+      ring.style.strokeDashoffset = CIRCUMFERENCE;
+      renderLaps();
+    }
+
+    function renderLaps() {
+      if (laps.length === 0) {
+        lapsList.innerHTML = '<div class="no-laps">No laps recorded</div>';
+        return;
+      }
+      lapsList.innerHTML = laps.map((l, i) => {
+        const sp = format(l.split);
+        const to = format(l.total);
+        const num = laps.length - i;
+        return `
+          <div class="lap-item">
+            <span class="lap-num">Lap ${num}</span>
+            <span class="lap-split">${sp.min}:${sp.sec}.${sp.mil}</span>
+            <span>${to.min}:${to.sec}.${to.mil}</span>
+          </div>`;
+      }).join('');
+    }
+  </script>
+</body>
+</html>
